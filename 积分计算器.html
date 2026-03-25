@@ -1,0 +1,1297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>游戏积分计算器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      overflow-x: hidden;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      padding: 12px;
+      color: #fff;
+      overflow-x: hidden;
+      width: 100%;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 28px;
+      color: #ffd700;
+      text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 20px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .card-title {
+      font-size: 18px;
+      margin-bottom: 15px;
+      color: #4fc3f7;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-title::before {
+      content: '';
+      width: 4px;
+      height: 20px;
+      background: #4fc3f7;
+      border-radius: 2px;
+    }
+
+    /* 抽水区域 */
+    .rake-section {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+
+    .rake-input {
+      flex: 1;
+      min-width: 150px;
+    }
+
+    .rake-input input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.3);
+      color: #fff;
+      font-size: 18px;
+      text-align: center;
+    }
+
+    .rake-input input:focus {
+      outline: none;
+      border-color: #ffd700;
+    }
+
+    .rake-display {
+      font-size: 24px;
+      color: #ffd700;
+      font-weight: bold;
+    }
+
+    /* 玩家列表 */
+    .player-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .player-item {
+      display: grid;
+      grid-template-columns: 100px 1fr 1fr 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 15px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      position: relative;
+    }
+
+    .player-name input {
+      width: 100%;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+      font-size: 16px;
+      font-weight: bold;
+    }
+
+    .player-name input:focus {
+      outline: none;
+      background: rgba(255, 255, 255, 0.25);
+    }
+
+    .player-inputs {
+      display: contents;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .input-group label {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .input-group input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 2px solid transparent;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      font-size: 16px;
+      text-align: center;
+    }
+
+    .input-group input:focus {
+      outline: none;
+      border-color: #4fc3f7;
+    }
+
+    .input-group.bank input {
+      background: rgba(76, 175, 80, 0.3);
+    }
+
+    .input-group.final input {
+      background: rgba(255, 152, 0, 0.3);
+    }
+
+    .input-group.result {
+      text-align: center;
+    }
+
+    .input-group.result .value {
+      font-size: 20px;
+      font-weight: bold;
+      padding: 8px;
+    }
+
+    .input-group.result .value.win {
+      color: #4caf50;
+    }
+
+    .input-group.result .value.lose {
+      color: #f44336;
+    }
+
+    .input-group.result .value.zero {
+      color: #9e9e9e;
+    }
+
+    .delete-btn {
+      width: 36px;
+      height: 36px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(244, 67, 54, 0.3);
+      color: #f44336;
+      font-size: 20px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .delete-btn:hover {
+      background: #f44336;
+      color: #fff;
+    }
+
+    .add-btn {
+      width: 100%;
+      padding: 15px;
+      border: 2px dashed rgba(255, 255, 255, 0.3);
+      border-radius: 12px;
+      background: transparent;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .add-btn:hover {
+      border-color: #4fc3f7;
+      color: #4fc3f7;
+      background: rgba(79, 195, 247, 0.1);
+    }
+
+    /* 结算区域 */
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 15px;
+    }
+
+    .summary-item {
+      text-align: center;
+      padding: 15px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 12px;
+    }
+
+    .summary-item .label {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.6);
+      margin-bottom: 8px;
+    }
+
+    .summary-item .value {
+      font-size: 24px;
+      font-weight: bold;
+    }
+
+    .summary-item .value.success {
+      color: #4caf50;
+    }
+
+    .summary-item .value.error {
+      color: #f44336;
+    }
+
+    .summary-item .value.warning {
+      color: #ff9800;
+    }
+
+    /* 验证状态 */
+    .verify-status {
+      margin-top: 20px;
+      padding: 15px 20px;
+      border-radius: 12px;
+      text-align: center;
+      font-size: 16px;
+      font-weight: bold;
+    }
+
+    .verify-status.success {
+      background: rgba(76, 175, 80, 0.2);
+      border: 2px solid #4caf50;
+      color: #4caf50;
+    }
+
+    .verify-status.error {
+      background: rgba(244, 67, 54, 0.2);
+      border: 2px solid #f44336;
+      color: #f44336;
+    }
+
+    .verify-status.pending {
+      background: rgba(158, 158, 158, 0.2);
+      border: 2px solid #9e9e9e;
+      color: #9e9e9e;
+    }
+
+    /* 操作按钮 */
+    .actions {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+
+    .action-btn {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .action-btn.primary {
+      background: linear-gradient(135deg, #4fc3f7, #29b6f6);
+      color: #fff;
+    }
+
+    .action-btn.primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(79, 195, 247, 0.4);
+    }
+
+    .action-btn.danger {
+      background: rgba(244, 67, 54, 0.2);
+      color: #f44336;
+      border: 2px solid #f44336;
+    }
+
+    .action-btn.danger:hover {
+      background: #f44336;
+      color: #fff;
+    }
+
+    /* 结算明细 */
+    .settlement-list {
+      margin-top: 20px;
+    }
+
+    .settlement-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      margin-bottom: 10px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 10px;
+      border-left: 4px solid;
+    }
+
+    .settlement-item.pay {
+      border-left-color: #f44336;
+    }
+
+    .settlement-item.receive {
+      border-left-color: #4caf50;
+    }
+
+    .settlement-item.rake {
+      border-left-color: #ff9800;
+    }
+
+    .settlement-item .flow {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+    }
+
+    .settlement-item .player-tag {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .settlement-item .player-tag.loser {
+      background: rgba(244, 67, 54, 0.3);
+      color: #f44336;
+    }
+
+    .settlement-item .player-tag.winner {
+      background: rgba(76, 175, 80, 0.3);
+      color: #4caf50;
+    }
+
+    .settlement-item .player-tag.rake {
+      background: rgba(255, 152, 0, 0.3);
+      color: #ff9800;
+    }
+
+    .settlement-item .arrow {
+      font-size: 20px;
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .settlement-item .amount {
+      font-size: 20px;
+      font-weight: bold;
+      min-width: 80px;
+      text-align: right;
+    }
+
+    .settlement-item .amount.pay {
+      color: #f44336;
+    }
+
+    .settlement-item .amount.receive {
+      color: #4caf50;
+    }
+
+    .no-settlement {
+      text-align: center;
+      padding: 30px;
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 14px;
+    }
+
+    .settlement-summary {
+      margin-top: 15px;
+      padding: 15px;
+      background: rgba(255, 215, 0, 0.1);
+      border: 1px solid rgba(255, 215, 0, 0.3);
+      border-radius: 10px;
+    }
+
+    .settlement-summary h4 {
+      color: #ffd700;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+
+    .settlement-summary .transfer-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 15px;
+    }
+
+    .settlement-summary .transfer-item:last-child {
+      border-bottom: none;
+    }
+
+    .settlement-summary .transfer-item .name {
+      font-weight: bold;
+    }
+
+    .settlement-summary .transfer-item .name.loser {
+      color: #f44336;
+    }
+
+    .settlement-summary .transfer-item .name.winner {
+      color: #4caf50;
+    }
+
+    .settlement-summary .transfer-item .name.rake {
+      color: #ff9800;
+    }
+
+    .settlement-summary .transfer-item .name.collector {
+      color: #9c27b0;
+    }
+
+    .settlement-summary .transfer-item .transfer-amount {
+      color: #ffd700;
+      font-weight: bold;
+    }
+
+    /* 下拉框样式 */
+    #rakeCollector {
+      padding: 8px 16px;
+      border-radius: 6px;
+      background: rgba(255, 152, 0, 0.3);
+      border: 1px solid rgba(255, 152, 0, 0.5);
+      color: #fff;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    #rakeCollector option {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 8px;
+    }
+
+    #rakeCollector option:hover {
+      background: #29b6f6;
+    }
+
+    /* 手机端优化 */
+    @media (max-width: 500px) {
+      * {
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      body {
+        padding: 10px;
+      }
+
+      input[type="number"], input[type="text"], select {
+        font-size: 16px !important; /* 防止iOS自动缩放 */
+      }
+
+      h1 {
+        font-size: 22px;
+        margin-bottom: 15px;
+      }
+
+      .card {
+        padding: 15px;
+        margin-bottom: 15px;
+        border-radius: 12px;
+        overflow: hidden;
+      }
+
+      .card-title {
+        font-size: 16px;
+        margin-bottom: 12px;
+      }
+
+      /* 抽水区域手机优化 */
+      .rake-section {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .rake-input {
+        min-width: auto;
+      }
+
+      .rake-input input {
+        font-size: 20px;
+        padding: 14px;
+      }
+
+      .rake-display {
+        text-align: center;
+        font-size: 20px;
+      }
+
+      .rake-collector {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: stretch !important;
+      }
+
+      .rake-collector label {
+        text-align: center;
+      }
+
+      .rake-collector select {
+        width: 100%;
+        padding: 12px !important;
+        font-size: 16px !important;
+      }
+
+      .rake-collector span:last-child {
+        text-align: center;
+        display: block;
+        margin-left: 0 !important;
+      }
+
+      /* 玩家卡片手机优化 */
+      .player-item {
+        display: block;
+        padding: 12px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .player-item .player-name {
+        padding-right: 40px;
+        margin-bottom: 10px;
+      }
+
+      .player-item .player-name input {
+        font-size: 16px;
+        padding: 10px;
+        width: 100%;
+      }
+
+      .player-item .delete-btn {
+        position: absolute;
+        top: 12px;
+        right: 10px;
+        width: 28px;
+        height: 28px;
+        font-size: 16px;
+      }
+
+      .player-inputs {
+        display: grid;
+        grid-template-columns: 1fr 1fr 70px;
+        gap: 8px;
+        align-items: end;
+        width: 100%;
+      }
+
+      .input-group input {
+        font-size: 16px;
+        padding: 10px 6px;
+        width: 100%;
+        min-width: 0;
+      }
+
+      .input-group label {
+        font-size: 12px;
+      }
+
+      .input-group.result {
+        text-align: center;
+      }
+
+      .input-group.result .value {
+        font-size: 20px;
+        padding: 8px 2px;
+        min-height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .input-group {
+        min-width: 0;
+      }
+
+      /* 统计区域手机优化 */
+      .summary {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+      }
+
+      .summary-item {
+        padding: 12px 8px;
+      }
+
+      .summary-item .label {
+        font-size: 12px;
+        margin-bottom: 4px;
+      }
+
+      .summary-item .value {
+        font-size: 18px;
+      }
+
+      /* 验证状态手机优化 */
+      .verify-status {
+        padding: 12px 15px;
+        font-size: 14px;
+        margin-top: 15px;
+      }
+
+      /* 按钮手机优化 */
+      .actions {
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .action-btn {
+        width: 100%;
+        padding: 14px;
+        font-size: 16px;
+      }
+
+      .add-btn {
+        padding: 14px;
+        font-size: 15px;
+      }
+
+      /* 结算明细手机优化 */
+      .settlement-item {
+        padding: 10px 12px;
+        flex-wrap: wrap;
+      }
+
+      .settlement-item .flow {
+        flex: 1;
+        min-width: 150px;
+      }
+
+      .settlement-item .player-tag {
+        font-size: 13px;
+        padding: 3px 10px;
+      }
+
+      .settlement-item .arrow {
+        font-size: 14px;
+      }
+
+      .settlement-item .amount {
+        font-size: 18px;
+      }
+
+      /* 转账方案手机优化 */
+      .settlement-summary {
+        padding: 12px;
+      }
+
+      .settlement-summary h4 {
+        font-size: 13px;
+      }
+
+      .settlement-summary .transfer-item {
+        font-size: 14px;
+        flex-wrap: wrap;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>游戏积分计算器</h1>
+
+    <!-- 抽水设置 -->
+    <div class="card">
+      <div class="card-title">抽水（场地费）</div>
+      <div class="rake-section">
+        <div class="rake-input">
+          <input type="number" id="rakeInput" placeholder="输入抽水总额" value="0" oninput="calculate()">
+        </div>
+        <div class="rake-display">
+          抽水: <span id="rakeDisplay">0</span>
+        </div>
+      </div>
+      <div class="rake-collector" style="margin-top: 15px;">
+        <label style="font-size: 14px; color: rgba(255,255,255,0.6); margin-right: 10px;">场地费由谁收：</label>
+        <select id="rakeCollector" onchange="calculate()">
+          <option value="">-- 选择收款人 --</option>
+        </select>
+        <span style="font-size: 12px; color: rgba(255,255,255,0.4); margin-left: 10px;">（此人统一付给老板）</span>
+      </div>
+    </div>
+
+    <!-- 玩家列表 -->
+    <div class="card">
+      <div class="card-title">玩家列表</div>
+      <div class="player-list" id="playerList">
+        <!-- 玩家项目会动态添加 -->
+      </div>
+      <button class="add-btn" onclick="addPlayer()">+ 添加玩家</button>
+    </div>
+
+    <!-- 结算统计 -->
+    <div class="card">
+      <div class="card-title">结算统计</div>
+      <div class="summary">
+        <div class="summary-item">
+          <div class="label">银行总支出</div>
+          <div class="value" id="totalBank">0</div>
+        </div>
+        <div class="summary-item">
+          <div class="label">玩家剩余总计</div>
+          <div class="value" id="totalFinal">0</div>
+        </div>
+        <div class="summary-item">
+          <div class="label">赢家总赢</div>
+          <div class="value success" id="totalWin">0</div>
+        </div>
+        <div class="summary-item">
+          <div class="label">输家总输</div>
+          <div class="value error" id="totalLose">0</div>
+        </div>
+        <div class="summary-item">
+          <div class="label">抽水</div>
+          <div class="value warning" id="totalRake">0</div>
+        </div>
+      </div>
+      <div class="verify-status pending" id="verifyStatus">
+        请输入数据后进行验证
+      </div>
+      <div class="actions">
+        <button class="action-btn primary" onclick="calculate()">计算结果</button>
+        <button class="action-btn danger" onclick="resetAll()">重置数据</button>
+        <button class="action-btn" style="background: rgba(156,39,176,0.3); color: #ce93d8; border: 2px solid #9c27b0;" onclick="generateTestData()">生成测试数据</button>
+        <button class="action-btn" style="background: rgba(255,87,34,0.3); color: #ff8a65; border: 2px solid #ff5722;" onclick="clearCache()">清空缓存</button>
+      </div>
+    </div>
+
+    <!-- 结算明细 -->
+    <div class="card">
+      <div class="card-title">结算明细</div>
+      <div class="settlement-list" id="settlementList">
+        <div class="no-settlement">暂无结算数据</div>
+      </div>
+      <div class="settlement-summary" id="settlementSummary" style="display: none;">
+        <h4>💰 转账方案（最简化）</h4>
+        <div id="transferList"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let playerCount = 0;
+    const STORAGE_KEY = 'gameScoreCalculator';
+
+    // 保存数据到本地
+    function saveToLocal() {
+      const players = document.querySelectorAll('.player-item');
+      const playersData = [];
+
+      players.forEach(player => {
+        playersData.push({
+          name: player.querySelector('[data-field="name"]').value,
+          bank: player.querySelector('[data-field="bank"]').value,
+          final: player.querySelector('[data-field="final"]').value
+        });
+      });
+
+      const data = {
+        rake: document.getElementById('rakeInput').value,
+        rakeCollector: document.getElementById('rakeCollector').value,
+        players: playersData
+      };
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+
+    // 从本地加载数据
+    function loadFromLocal() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) return false;
+
+      try {
+        const data = JSON.parse(saved);
+
+        // 清空现有玩家
+        document.getElementById('playerList').innerHTML = '';
+        playerCount = 0;
+
+        // 添加玩家
+        if (data.players && data.players.length > 0) {
+          data.players.forEach(p => {
+            addPlayer();
+            const players = document.querySelectorAll('.player-item');
+            const lastPlayer = players[players.length - 1];
+            lastPlayer.querySelector('[data-field="name"]').value = p.name || '';
+            lastPlayer.querySelector('[data-field="bank"]').value = p.bank || 0;
+            lastPlayer.querySelector('[data-field="final"]').value = p.final || 0;
+          });
+        }
+
+        // 设置抽水
+        document.getElementById('rakeInput').value = data.rake || 0;
+
+        // 更新下拉框
+        updateCollectorOptions();
+
+        // 设置收款人
+        if (data.rakeCollector) {
+          document.getElementById('rakeCollector').value = data.rakeCollector;
+        }
+
+        calculate();
+        return true;
+      } catch (e) {
+        console.error('加载缓存失败:', e);
+        return false;
+      }
+    }
+
+    // 清空缓存
+    function clearCache() {
+      if (confirm('确定要清空缓存吗？这将删除所有保存的数据。')) {
+        localStorage.removeItem(STORAGE_KEY);
+        resetAll(true);
+        alert('缓存已清空');
+      }
+    }
+
+    // 初始化
+    function init() {
+      // 尝试从本地加载，如果没有则添加默认玩家
+      if (!loadFromLocal()) {
+        addPlayer();
+        addPlayer();
+        addPlayer();
+        addPlayer();
+      }
+    }
+
+    // 添加玩家
+    function addPlayer() {
+      playerCount++;
+      const playerList = document.getElementById('playerList');
+      const playerDiv = document.createElement('div');
+      playerDiv.className = 'player-item';
+      playerDiv.id = `player-${playerCount}`;
+      playerDiv.innerHTML = `
+        <div class="player-name">
+          <input type="text" placeholder="玩家${playerCount}" value="玩家${playerCount}" data-field="name" oninput="updateCollectorOptions()">
+        </div>
+        <button class="delete-btn" onclick="removePlayer(${playerCount})">×</button>
+        <div class="player-inputs">
+          <div class="input-group bank">
+            <label>从银行拿</label>
+            <input type="number" placeholder="0" value="0" data-field="bank" oninput="calculate()">
+          </div>
+          <div class="input-group final">
+            <label>剩余积分</label>
+            <input type="number" placeholder="0" value="0" data-field="final" oninput="calculate()">
+          </div>
+          <div class="input-group result">
+            <label>输赢</label>
+            <div class="value zero" data-field="result">0</div>
+          </div>
+        </div>
+      `;
+      playerList.appendChild(playerDiv);
+      updateCollectorOptions();
+      calculate();
+    }
+
+    // 更新场地费收款人下拉框
+    function updateCollectorOptions() {
+      const select = document.getElementById('rakeCollector');
+      const currentValue = select.value;
+      const players = document.querySelectorAll('.player-item');
+
+      select.innerHTML = '<option value="">-- 选择收款人 --</option>';
+
+      players.forEach(player => {
+        const name = player.querySelector('[data-field="name"]').value || '未命名';
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        select.appendChild(option);
+      });
+
+      // 恢复之前选中的值（如果还存在）
+      if (currentValue) {
+        select.value = currentValue;
+      }
+
+      saveToLocal();
+    }
+
+    // 删除玩家
+    function removePlayer(id) {
+      const player = document.getElementById(`player-${id}`);
+      if (player) {
+        player.remove();
+        updateCollectorOptions();
+        calculate();
+      }
+    }
+
+    // 计算结果
+    function calculate() {
+      const rake = parseFloat(document.getElementById('rakeInput').value) || 0;
+      document.getElementById('rakeDisplay').textContent = rake;
+
+      const players = document.querySelectorAll('.player-item');
+      let totalBank = 0;
+      let totalFinal = 0;
+      let totalWin = 0;
+      let totalLose = 0;
+
+      players.forEach(player => {
+        const bankInput = player.querySelector('[data-field="bank"]');
+        const finalInput = player.querySelector('[data-field="final"]');
+        const resultDiv = player.querySelector('[data-field="result"]');
+
+        const bank = parseFloat(bankInput.value) || 0;
+        const final = parseFloat(finalInput.value) || 0;
+        const result = final - bank;
+
+        totalBank += bank;
+        totalFinal += final;
+
+        if (result > 0) {
+          totalWin += result;
+          resultDiv.className = 'value win';
+          resultDiv.textContent = '+' + result;
+        } else if (result < 0) {
+          totalLose += Math.abs(result);
+          resultDiv.className = 'value lose';
+          resultDiv.textContent = result;
+        } else {
+          resultDiv.className = 'value zero';
+          resultDiv.textContent = '0';
+        }
+      });
+
+      // 更新统计
+      document.getElementById('totalBank').textContent = totalBank;
+      document.getElementById('totalFinal').textContent = totalFinal;
+      document.getElementById('totalWin').textContent = '+' + totalWin;
+      document.getElementById('totalLose').textContent = '-' + totalLose;
+      document.getElementById('totalRake').textContent = rake;
+
+      // 验证
+      // 正确的等式：银行总支出 = 玩家剩余总计 + 抽水
+      // 或者：赢家总赢 = 输家总输 - 抽水
+      const verifyStatus = document.getElementById('verifyStatus');
+      const diff = totalBank - totalFinal - rake;
+
+      if (totalBank === 0 && totalFinal === 0) {
+        verifyStatus.className = 'verify-status pending';
+        verifyStatus.textContent = '请输入数据后进行验证';
+      } else if (Math.abs(diff) < 0.01) {
+        verifyStatus.className = 'verify-status success';
+        verifyStatus.textContent = '验证通过！数据正确';
+      } else {
+        verifyStatus.className = 'verify-status error';
+        if (diff > 0) {
+          verifyStatus.textContent = `数据有误！银行多支出 ${diff} 积分（可能是剩余积分少记了或抽水多记了）`;
+        } else {
+          verifyStatus.textContent = `数据有误！银行少支出 ${Math.abs(diff)} 积分（可能是剩余积分多记了或抽水少记了）`;
+        }
+      }
+
+      // 生成结算明细
+      generateSettlement(players, rake, totalLose);
+
+      // 保存到本地
+      saveToLocal();
+    }
+
+    // 生成结算明细
+    function generateSettlement(players, rake, totalLose) {
+      const settlementList = document.getElementById('settlementList');
+      const settlementSummary = document.getElementById('settlementSummary');
+      const transferList = document.getElementById('transferList');
+
+      // 收集输家和赢家
+      const losers = [];
+      const winners = [];
+
+      players.forEach(player => {
+        const name = player.querySelector('[data-field="name"]').value || '未命名';
+        const bank = parseFloat(player.querySelector('[data-field="bank"]').value) || 0;
+        const final = parseFloat(player.querySelector('[data-field="final"]').value) || 0;
+        const result = final - bank;
+
+        if (result < 0) {
+          losers.push({ name, amount: Math.abs(result) });
+        } else if (result > 0) {
+          winners.push({ name, amount: result });
+        }
+      });
+
+      // 如果没有输赢，显示无结算
+      if (losers.length === 0 && winners.length === 0) {
+        settlementList.innerHTML = '<div class="no-settlement">暂无结算数据</div>';
+        settlementSummary.style.display = 'none';
+        return;
+      }
+
+      let html = '';
+
+      // 显示输家
+      losers.forEach(loser => {
+        html += `
+          <div class="settlement-item pay">
+            <div class="flow">
+              <span class="player-tag loser">${loser.name}</span>
+              <span class="arrow">需要支付</span>
+            </div>
+            <span class="amount pay">${loser.amount}</span>
+          </div>
+        `;
+      });
+
+      // 显示赢家
+      winners.forEach(winner => {
+        html += `
+          <div class="settlement-item receive">
+            <div class="flow">
+              <span class="player-tag winner">${winner.name}</span>
+              <span class="arrow">可以收取</span>
+            </div>
+            <span class="amount receive">${winner.amount}</span>
+          </div>
+        `;
+      });
+
+      // 显示场地费
+      if (rake > 0) {
+        html += `
+          <div class="settlement-item rake">
+            <div class="flow">
+              <span class="player-tag rake">场地费</span>
+              <span class="arrow">抽水</span>
+            </div>
+            <span class="amount" style="color: #ff9800;">${rake}</span>
+          </div>
+        `;
+      }
+
+      settlementList.innerHTML = html;
+
+      // 生成最简化转账方案
+      generateTransferPlan(losers, winners, rake, totalLose, transferList, settlementSummary);
+    }
+
+    // 生成最简化转账方案
+    function generateTransferPlan(losers, winners, rake, totalLose, transferList, settlementSummary) {
+      if (losers.length === 0 && winners.length === 0) {
+        settlementSummary.style.display = 'none';
+        return;
+      }
+
+      settlementSummary.style.display = 'block';
+      let html = '';
+
+      // 获取场地费收款人
+      const rakeCollector = document.getElementById('rakeCollector').value;
+
+      const transfers = [];
+      const totalWin = winners.reduce((sum, w) => sum + w.amount, 0);
+
+      // 方案：所有输家把钱付给收款人，收款人再分配给赢家和老板
+      if (rakeCollector) {
+        // 1. 其他输家付给收款人（收款人自己不用付给自己）
+        losers.forEach(loser => {
+          if (loser.name !== rakeCollector) {
+            transfers.push({
+              from: loser.name,
+              fromType: 'loser',
+              to: rakeCollector,
+              toType: 'collector',
+              amount: loser.amount
+            });
+          }
+        });
+
+        // 2. 收款人付给赢家（按赢家赢得比例分配）
+        if (totalWin > 0) {
+          winners.forEach(winner => {
+            // 如果赢家就是收款人，则不需要自己付给自己
+            if (winner.name !== rakeCollector) {
+              transfers.push({
+                from: rakeCollector,
+                fromType: 'collector',
+                to: winner.name,
+                toType: 'winner',
+                amount: winner.amount
+              });
+            }
+          });
+        }
+
+        // 3. 收款人付场地费给老板
+        if (rake > 0) {
+          transfers.push({
+            from: rakeCollector,
+            fromType: 'collector',
+            to: '老板（场地费）',
+            toType: 'rake',
+            amount: rake
+          });
+        }
+      } else {
+        // 没有收款人时，按原来的逻辑
+        losers.forEach(loser => {
+          if (totalWin > 0) {
+            winners.forEach(winner => {
+              const share = (winner.amount / totalWin) * loser.amount;
+              if (share > 0) {
+                transfers.push({
+                  from: loser.name,
+                  fromType: 'loser',
+                  to: winner.name,
+                  toType: 'winner',
+                  amount: share
+                });
+              }
+            });
+          }
+        });
+      }
+
+      // 合并相同的转账（从同一人到同一人）
+      const mergedTransfers = [];
+      transfers.forEach(t => {
+        const existing = mergedTransfers.find(m => m.from === t.from && m.to === t.to);
+        if (existing) {
+          existing.amount += t.amount;
+        } else {
+          mergedTransfers.push({ ...t });
+        }
+      });
+
+      // 生成HTML
+      mergedTransfers.forEach(t => {
+        t.amount = Math.round(t.amount * 100) / 100;
+        html += `
+          <div class="transfer-item">
+            <span class="name ${t.fromType}">${t.from}</span>
+            <span>→</span>
+            <span class="name ${t.toType}">${t.to}</span>
+            <span>:</span>
+            <span class="transfer-amount">${t.amount}</span>
+          </div>
+        `;
+      });
+
+      // 提示未选择收款人
+      if (rake > 0 && !rakeCollector) {
+        html += `<div class="transfer-item" style="color: #ff9800;">⚠️ 请选择场地费收款人</div>`;
+      }
+
+      if (html === '') {
+        html = '<div class="transfer-item">无需转账</div>';
+      }
+
+      transferList.innerHTML = html;
+    }
+
+    // 重置所有数据
+    function resetAll(skipConfirm = false) {
+      if (skipConfirm || confirm('确定要重置所有数据吗？')) {
+        document.getElementById('rakeInput').value = 0;
+        document.getElementById('playerList').innerHTML = '';
+        playerCount = 0;
+        // 重置时添加默认玩家（不从缓存加载）
+        addPlayer();
+        addPlayer();
+        addPlayer();
+        addPlayer();
+        saveToLocal();
+      }
+    }
+
+    // 生成随机测试数据
+    function generateTestData() {
+      const names = ['张三', '李四', '王五', '赵六', '钱七', '孙八', '周九', '吴十'];
+      const playerCount = Math.floor(Math.random() * 4) + 3; // 3-6个玩家
+
+      // 清空现有玩家
+      document.getElementById('playerList').innerHTML = '';
+      window.playerCount = 0;
+
+      // 生成玩家数据
+      const playersData = [];
+      let totalBank = 0;
+
+      for (let i = 0; i < playerCount; i++) {
+        const bank = (Math.floor(Math.random() * 10) + 1) * 100; // 100-1000，100的倍数
+        totalBank += bank;
+        playersData.push({
+          name: names[i],
+          bank: bank,
+          final: 0
+        });
+      }
+
+      // 随机抽水 (总银行的5%-15%)
+      const rake = Math.floor(totalBank * (Math.random() * 0.1 + 0.05) / 10) * 10;
+
+      // 剩余总额 = 银行总额 - 抽水
+      const totalFinal = totalBank - rake;
+
+      // 随机分配剩余积分给每个玩家
+      let remaining = totalFinal;
+      for (let i = 0; i < playersData.length - 1; i++) {
+        // 随机分配，但保证不会太极端
+        const minFinal = Math.max(0, playersData[i].bank - 200);
+        const maxFinal = Math.min(remaining - (playersData.length - i - 1) * 50, playersData[i].bank + 300);
+        const final = Math.floor(Math.random() * (maxFinal - minFinal + 1) / 10) * 10 + minFinal;
+        playersData[i].final = Math.max(0, Math.min(final, remaining));
+        remaining -= playersData[i].final;
+      }
+      // 最后一个玩家拿剩余的
+      playersData[playersData.length - 1].final = remaining;
+
+      // 添加玩家到页面
+      playersData.forEach(data => {
+        addPlayer();
+        const players = document.querySelectorAll('.player-item');
+        const lastPlayer = players[players.length - 1];
+        lastPlayer.querySelector('[data-field="name"]').value = data.name;
+        lastPlayer.querySelector('[data-field="bank"]').value = data.bank;
+        lastPlayer.querySelector('[data-field="final"]').value = data.final;
+      });
+
+      // 设置抽水
+      document.getElementById('rakeInput').value = rake;
+
+      // 更新下拉框并计算
+      updateCollectorOptions();
+      calculate();
+    }
+
+    // 页面加载初始化
+    init();
+  </script>
+</body>
+</html>
