@@ -1,0 +1,1236 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Basketball Dashboard - Connected</title>
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css" />
+    <style>
+      /* 保持你原本的样式不变 */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      .dashboard-container {
+        min-height: calc(100vh);
+        padding: 24px;
+        background: linear-gradient(135deg, #1f99ff 0%, #8a4dff 50%, #ff7ac2 100%);
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+      }
+
+      .dashboard-main-card {
+        width: 100%;
+        max-width: 1200px;
+        background: rgba(255, 255, 255, 0.96);
+        border-radius: 16px;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.35);
+        padding: 20px 24px 28px;
+        backdrop-filter: blur(10px);
+      }
+
+      .toolbar {
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .toolbar .el-button--primary {
+        background-image: linear-gradient(135deg, #3b82f6, #6366f1);
+        border: none;
+      }
+
+      .toolbar .el-button--success {
+        background-image: linear-gradient(135deg, #10b981, #22c55e);
+        border: none;
+      }
+
+      .match-info {
+        margin-bottom: 18px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px 28px;
+        align-items: center;
+        font-size: 14px;
+        padding: 10px 14px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(236, 72, 153, 0.06));
+        border: 1px solid rgba(148, 163, 184, 0.45);
+      }
+
+      .match-info span b {
+        color: #111827;
+      }
+
+      .toolbar-right {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+      }
+
+      .total-score {
+        font-size: 18px;
+        font-weight: 600;
+        color: #111827;
+      }
+
+      .total-score b {
+        background: linear-gradient(135deg, #f97316, #ef4444);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+
+      .operation-form {
+        margin-bottom: 16px;
+        padding: 12px 14px 4px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.06), rgba(16, 185, 129, 0.04));
+      }
+
+      .operation-form .el-button {
+        margin-right: 8px;
+        margin-bottom: 6px;
+        border-radius: 999px;
+        padding: 7px 16px;
+        background-image: linear-gradient(135deg, #6366f1, #3b82f6);
+        border: none;
+        color: #fff;
+      }
+
+      .el-table .warning-row {
+        background: rgba(16, 185, 129, 0.1) !important;
+      }
+
+      .stat-range-card {
+        margin-top: 15px;
+        padding: 12px 16px;
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(236, 72, 153, 0.08));
+        border: 1px solid rgba(59, 130, 246, 0.2);
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      }
+
+      .stat-range-card .stat-icon {
+        font-size: 16px;
+        color: #3b82f6;
+      }
+
+      .stat-range-card .stat-label {
+        color: #606266;
+        font-size: 13px;
+        font-weight: 500;
+      }
+
+      .stat-range-card .stat-date {
+        color: #111827;
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .stat-range-card .stat-separator {
+        color: #909399;
+        font-size: 13px;
+      }
+
+      .stat-total {
+        color: #606266;
+        font-weight: 500;
+      }
+
+      .stat-average {
+        color: #e6a23c;
+        font-weight: 600;
+      }
+
+      .stat-separator-slash {
+        color: #909399;
+        margin: 0 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div class="dashboard-container">
+        <div class="dashboard-main-card">
+          <!-- 顶部操作 -->
+          <div class="toolbar">
+            <div>
+              <el-button type="info" @click="openHistory">历史记录 & 统计</el-button>
+
+              <el-button type="primary" @click="openMatchDialog">新建比赛</el-button>
+              <el-button type="success" @click="openAddPlayerDialog">添加球员</el-button>
+            </div>
+            <div class="toolbar-right" v-if="isMatchStarted">
+              <div class="total-score">当前总分：<b>{{ totalScore }}</b></div>
+              <div class="match-controls">
+                <span class="match-time" v-if="hasMatchStartedOnce"> 用时：<b>{{ formattedMatchDuration }}</b> </span>
+                <el-button type="primary" size="mini" v-if="!hasMatchStartedOnce" @click="startMatch"> 开始比赛 </el-button>
+                <el-button type="warning" size="mini" v-if="isMatchRunning" @click="pauseMatch"> 暂停 </el-button>
+                <el-button type="success" size="mini" v-if="hasMatchStartedOnce && !isMatchRunning" @click="resumeMatch"> 继续 </el-button>
+                <el-button type="info" size="mini" v-if="hasMatchStartedOnce" @click="saveMatch" :disabled="!isMatchEnded"> 保存比赛 </el-button>
+                <el-button type="danger" size="mini" v-if="hasMatchStartedOnce" @click="endMatch"> 结束比赛 </el-button>
+              </div>
+            </div>
+          </div>
+
+          <div class="match-info" v-if="isMatchStarted">
+            <span>比赛地点：<b>{{ matchForm.location }}</b></span>
+            <span>比赛时间：<b>{{ formattedMatchTime }}</b></span>
+            <span>对战队伍：<b>{{ matchForm.teams }}</b></span>
+            <span style="display: flex; align-items: center; gap: 8px">
+              对手总分：
+              <el-input type="number" v-model.number="opponentScore" :min="0" :max="999" size="small" style="width: 100px" placeholder="请输入"></el-input>
+              <el-button @click="()=>{opponentScore+=1}">+1</el-button>
+              <el-button @click="()=>{if(opponentScore>0) opponentScore-=1}">-1</el-button>
+            </span>
+          </div>
+
+          <!-- 操作区 -->
+          <el-form class="operation-form" v-if="isMatchStarted">
+            <el-form-item label="操作球员">
+              <el-select v-model="selectedPlayerId" placeholder="请选择上场球员">
+                <el-option v-for="item in playerList.filter(p => p.isPlaying)" :key="item.id" :label="item.name" :value="item.id"></el-option>
+              </el-select>
+            </el-form-item>
+            <el-form-item>
+              <el-button @click="doAction('score', 2)">2分</el-button>
+              <el-button @click="doAction('score', 3)">3分</el-button>
+              <el-button @click="doAction('score', 1)">罚球</el-button>
+              <el-button @click="doAction('rebound', 1)">篮板</el-button>
+              <el-button @click="doAction('assist', 1)">助攻</el-button>
+              <el-button @click="doAction('block', 1)">盖帽</el-button>
+              <el-button @click="doAction('steal', 1)">抢断</el-button>
+              <el-button @click="doAction('foul', 1)">犯规</el-button>
+              <el-button @click="()=>{correction=true}" v-if="!correction">数据修正</el-button>
+              <el-button @click="()=>{correction=false}" v-if="correction">数据确认</el-button>
+            </el-form-item>
+          </el-form>
+
+          <!-- 球员表格 -->
+          <el-table :data="sortedPlayerList" border :row-class-name="tableRowClassName">
+            <el-table-column prop="name" label="姓名" align="center"></el-table-column>
+            <el-table-column prop="number" label="球衣号" align="center"></el-table-column>
+            <el-table-column prop="score" label="得分" align="center">
+              <template slot-scope="scope">
+                <el-input v-model.number="scope.row.score" type="number" v-if="correction"></el-input>
+                <span v-else>{{ scope.row.score }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="rebound" label="篮板" align="center">
+              <template slot-scope="scope">
+                <el-input v-model.number="scope.row.rebound" type="number" v-if="correction"></el-input>
+                <span v-else>{{ scope.row.rebound }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="assist" label="助攻" align="center">
+              <template slot-scope="scope">
+                <el-input v-model.number="scope.row.assist" type="number" v-if="correction"></el-input>
+                <span v-else>{{ scope.row.assist }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="block" label="盖帽" align="center">
+              <template slot-scope="scope">
+                <el-input v-model.number="scope.row.block" type="number" v-if="correction"></el-input>
+                <span v-else>{{ scope.row.block }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="steal" label="抢断" align="center">
+              <template slot-scope="scope">
+                <el-input v-model.number="scope.row.steal" type="number" v-if="correction"></el-input>
+                <span v-else>{{ scope.row.steal }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="foul" label="犯规" align="center">
+              <template slot-scope="scope">
+                <el-input v-model.number="scope.row.foul" type="number" v-if="correction"></el-input>
+                <span v-else>{{ scope.row.foul }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="playTimeSeconds" label="上场时长" align="center" width="100">
+              <template slot-scope="scope">
+                <span>{{ formatPlayTime(scope.row.playTimeSeconds) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="280" align="center">
+              <template slot-scope="scope">
+                <el-button size="mini" type="success" @click="scope.row.isPlaying = true; saveMatchToLocal()" v-if="!correction && isMatchStarted">上场</el-button>
+                <el-button size="mini" type="danger" @click="scope.row.isPlaying = false; saveMatchToLocal()" v-if="!correction && isMatchStarted">休息</el-button>
+                <!-- 新增删除按钮 -->
+                <el-button size="mini" type="text" style="color: #f56c6c" @click="handleDeletePlayer(scope.row)" v-if="!correction">删除球员 </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+
+        <!-- 弹窗部分 -->
+        <el-dialog title="添加球员" :visible.sync="addPlayerDialogVisible" width="400px">
+          <el-form :model="addPlayerForm" label-width="80px">
+            <el-form-item label="姓名">
+              <el-input v-model="addPlayerForm.name"></el-input>
+            </el-form-item>
+            <el-form-item label="球衣号">
+              <el-input v-model.number="addPlayerForm.number" type="number"></el-input>
+            </el-form-item>
+          </el-form>
+          <span slot="footer"><el-button @click="addPlayerDialogVisible = false">取消</el-button><el-button type="primary" @click="confirmAddPlayer">确定</el-button></span>
+        </el-dialog>
+
+        <el-dialog title="新建比赛" :visible.sync="matchDialogVisible" width="480px">
+          <el-form label-width="90px">
+            <el-form-item label="地点">
+              <el-input v-model="matchForm.location"></el-input>
+            </el-form-item>
+            <el-form-item label="时间">
+              <el-date-picker v-model="matchForm.startTime" type="datetime" value-format="timestamp" style="width: 100%"></el-date-picker>
+            </el-form-item>
+            <el-form-item label="对阵">
+              <el-input v-model="matchForm.teams" placeholder="A队 VS B队"></el-input>
+            </el-form-item>
+          </el-form>
+          <span slot="footer"><el-button @click="matchDialogVisible = false">取消</el-button><el-button type="primary" @click="confirmMatch">确定</el-button></span>
+        </el-dialog>
+        <!-- 历史记录与统计大弹窗 -->
+        <el-dialog title="数据中心" :visible.sync="historyVisible" width="90%">
+          <el-tabs v-model="activeTab">
+            <!-- 标签页1：比赛记录列表 -->
+            <el-tab-pane label="比赛记录" name="matches">
+              <!-- 查询条件 -->
+              <div style="margin-bottom: 15px; padding: 12px; background: #f4f4f5; border-radius: 4px">
+                <el-form :inline="true" size="small">
+                  <el-form-item label="查询周期：">
+                    <el-date-picker v-model="matchQueryDateRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" value-format="yyyy-MM-dd" format="yyyy-MM-dd" style="width: 300px" @change="handleDateRangeChange"></el-date-picker>
+                  </el-form-item>
+                  <el-form-item>
+                    <el-button type="primary" size="small" @click="queryMatchHistory">查询</el-button>
+                    <el-button size="small" @click="resetMatchQuery">重置</el-button>
+                  </el-form-item>
+                  <el-form-item v-if="matchQueryDateRange && matchQueryDateRange.length === 2">
+                    <span style="color: #606266; font-size: 12px"> 当前查询：{{ matchQueryDateRange[0] }} 至 {{ matchQueryDateRange[1] }}（共 {{ filteredMatchHistoryList.length }} 场） </span>
+                  </el-form-item>
+                </el-form>
+              </div>
+
+              <el-table :data="filteredMatchHistoryList" stripe style="width: 100%">
+                <el-table-column prop="teams" label="对阵"></el-table-column>
+                <el-table-column prop="location" label="地点"></el-table-column>
+                <el-table-column label="比赛时间">
+                  <template slot-scope="scope">
+                    <span v-if="scope.row.start_time">{{ new Date(scope.row.start_time).toLocaleString() }}</span>
+                    <span v-else style="color: #909399">-</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="保存时间" width="180">
+                  <template slot-scope="scope">
+                    <span v-if="scope.row.saved_at" style="color: #909399; font-size: 12px">{{ new Date(scope.row.saved_at).toLocaleString() }}</span>
+                    <span v-else style="color: #909399">-</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="总时长" width="100">
+                  <template slot-scope="scope">
+                    <span v-if="scope.row.duration_seconds">{{ scope.row.duration_seconds }}秒</span>
+                    <span v-else style="color: #909399">-</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="总分" width="100">
+                  <template slot-scope="scope">
+                    <span v-if="scope.row.teamScore">{{ scope.row.teamScore }}</span>
+                    <span v-else style="color: #909399">-</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="对手总分" width="100">
+                  <template slot-scope="scope">
+                    <span v-if="scope.row.opponentScore">{{ scope.row.opponentScore }}</span>
+                    <span v-else style="color: #909399">-</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作">
+                  <template slot-scope="scope">
+                    <el-button size="mini" @click="viewMatchDetail(scope.row.id)">详情</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </el-tab-pane>
+
+            <el-tab-pane label="球员数据深度统计" name="stats">
+              <!-- 查询条件 -->
+              <div style="margin-bottom: 15px; background: #f4f4f5; padding: 10px 15px; border-radius: 4px">
+                <!-- <el-form :inline="true" size="small">
+                  <el-form-item label="统计周期：">
+                    <el-date-picker v-model="playerStatsDateRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" value-format="yyyy-MM-dd" format="yyyy-MM-dd" style="width: 300px"></el-date-picker>
+                  </el-form-item>
+                  <el-form-item>
+                    <el-button type="primary" size="small" @click="queryPlayerStats">查询</el-button>
+                    <el-button size="small" @click="resetPlayerStatsQuery">重置</el-button>
+                  </el-form-item>
+                  <el-form-item v-if="playerStatsDateRange && playerStatsDateRange.length === 2">
+                    <span style="color: #606266; font-size: 12px"> 当前查询：{{ playerStatsDateRange[0] }} 至 {{ playerStatsDateRange[1] }} </span>
+                  </el-form-item>
+                </el-form> -->
+                <div v-if="statRange.start && statRange.end" class="stat-range-card">
+                  <i class="el-icon-date stat-icon"></i>
+                  <span class="stat-label">统计周期：</span>
+                  <span class="stat-date">{{ statRange.start }}</span>
+                  <span class="stat-separator">至</span>
+                  <span class="stat-date">{{ statRange.end }}</span>
+                </div>
+              </div>
+
+              <el-table :data="playerStatsReport" border stripe size="mini" style="width: 100%">
+                <el-table-column prop="name" label="球员" width="100">
+                  <template slot-scope="s">{{s.row.name}} (#{{s.row.number}})</template>
+                </el-table-column>
+
+                <!-- 月度统计分组 (19-19) -->
+                <el-table-column label="本月统计 (上月19号-本月19号)">
+                  <el-table-column label="场次" prop="period.games_count" width="50"></el-table-column>
+                  <el-table-column label="得分(总/均)">
+                    <template slot-scope="s">
+                      <span class="stat-total">{{s.row.period.t_score || 0}}</span>
+                      <span class="stat-separator-slash">/</span>
+                      <span class="stat-average">{{ Number(s.row.period.a_score || 0).toFixed(1) }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="篮板(总/均)">
+                    <template slot-scope="s">
+                      <span class="stat-total">{{s.row.period.t_rebound || 0}}</span>
+                      <span class="stat-separator-slash">/</span>
+                      <span class="stat-average">{{ Number(s.row.period.a_rebound || 0).toFixed(1) }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="助攻(总/均)">
+                    <template slot-scope="s">
+                      <span class="stat-total">{{s.row.period.t_assist || 0}}</span>
+                      <span class="stat-separator-slash">/</span>
+                      <span class="stat-average">{{ Number(s.row.period.a_assist || 0).toFixed(1) }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="抢断(均)">
+                    <template slot-scope="s">
+                      <span class="stat-total">{{s.row.period.t_steal || 0}}</span>
+                      <span class="stat-separator-slash">/</span>
+                      <span class="stat-average">{{ Number(s.row.period.a_steal || 0).toFixed(1) }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="盖帽(均)">
+                    <template slot-scope="s">
+                      <span class="stat-total">{{s.row.period.t_block || 0}}</span>
+                      <span class="stat-separator-slash">/</span>
+                      <span class="stat-average">{{ Number(s.row.period.a_block || 0).toFixed(1) }}</span>
+                    </template>
+                  </el-table-column>
+                </el-table-column>
+
+                <!-- 生涯总计分组 -->
+                <el-table-column label="生涯总计 (全部历史)">
+                  <el-table-column label="场次" prop="games_count" width="50"></el-table-column>
+                  <el-table-column label="得分(总/均)">
+                    <template slot-scope="s">
+                      <span class="stat-total">{{s.row.t_score || 0}}</span>
+                      <span class="stat-separator-slash">/</span>
+                      <span class="stat-average">{{ Number(s.row.a_score || 0).toFixed(1) }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="篮板(总/均)">
+                    <template slot-scope="s">
+                      <span class="stat-total">{{s.row.t_rebound || 0}}</span>
+                      <span class="stat-separator-slash">/</span>
+                      <span class="stat-average">{{ Number(s.row.a_rebound || 0).toFixed(1) }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="助攻(总/均)">
+                    <template slot-scope="s">
+                      <span class="stat-total">{{s.row.t_assist || 0}}</span>
+                      <span class="stat-separator-slash">/</span>
+                      <span class="stat-average">{{ Number(s.row.a_assist || 0).toFixed(1) }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="抢断(均)">
+                    <template slot-scope="s">
+                      <span class="stat-total">{{s.row.t_steal || 0}}</span>
+                      <span class="stat-separator-slash">/</span>
+                      <span class="stat-average">{{ Number(s.row.a_steal || 0).toFixed(1) }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="盖帽(均)">
+                    <template slot-scope="s">
+                      <span class="stat-total">{{s.row.t_block || 0}}</span>
+                      <span class="stat-separator-slash">/</span>
+                      <span class="stat-average">{{ Number(s.row.a_block || 0).toFixed(1) }}</span>
+                    </template>
+                  </el-table-column>
+                </el-table-column>
+              </el-table>
+            </el-tab-pane>
+          </el-tabs>
+        </el-dialog>
+
+        <!-- 比赛详情小弹窗 -->
+        <el-dialog title="单场球员表现" :visible.sync="detailVisible" width="700px" append-to-body>
+          <el-table :data="currentMatchDetail" border>
+            <el-table-column prop="name" label="球员"></el-table-column>
+            <el-table-column prop="score" label="得分"></el-table-column>
+            <el-table-column prop="rebound" label="篮板"></el-table-column>
+            <el-table-column prop="assist" label="助攻"></el-table-column>
+            <el-table-column prop="block" label="盖帽"></el-table-column>
+            <el-table-column prop="steal" label="抢断"></el-table-column>
+            <el-table-column prop="foul" label="犯规"></el-table-column>
+            <el-table-column label="上场时长">
+              <template slot-scope="scope">
+                <span>{{ formatPlayTimeText(scope.row.play_time_seconds) }}</span>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-dialog>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/vue@2/dist/vue.js"></script>
+    <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+    <script>
+      // const API_BASE = window.location.origin + '/api';
+      const API_BASE = 'http://43.156.105.148:8898/api';
+
+      new Vue({
+        el: '#app',
+        data: {
+          selectedPlayerId: '',
+          correction: false,
+          isMatchStarted: false,
+          isMatchRunning: false,
+          hasMatchStartedOnce: false,
+          isMatchEnded: false, // 比赛是否已结束（但可能未保存）
+          matchDialogVisible: false,
+          addPlayerDialogVisible: false,
+          matchForm: { location: '', startTime: null, teams: '' },
+          addPlayerForm: { name: '', number: null },
+          opponentScore: null, // 对手总分
+          matchTimerSeconds: 0,
+          matchTimerId: null,
+          playerList: [],
+          historyVisible: false,
+          detailVisible: false,
+          activeTab: 'matches',
+          matchHistoryList: [],
+          currentMatchDetail: [],
+          playerStatsReport: [],
+          statRange: { start: '', end: '' },
+          saveDebounceTimer: null, // 防抖定时器
+          matchQueryDateRange: null, // 比赛记录查询日期范围 [startDate, endDate]
+          playerStatsDateRange: null, // 球员数据统计查询日期范围 [startDate, endDate]
+        },
+        created() {
+          this.fetchPlayers();
+        },
+        computed: {
+          totalScore() {
+            return this.playerList.reduce((s, p) => s + p.score, 0);
+          },
+          sortedPlayerList() {
+            return [...this.playerList].sort((a, b) => b.isPlaying - a.isPlaying);
+          },
+          formattedMatchDuration() {
+            const s = this.matchTimerSeconds;
+            return `${Math.floor(s / 60)
+              .toString()
+              .padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
+          },
+          formattedMatchTime() {
+            if (!this.matchForm.startTime) return '-';
+            return new Date(this.matchForm.startTime).toLocaleString();
+          },
+
+          /**
+           * 说明：根据日期范围过滤比赛记录列表
+           * 请求方式：本地计算
+           */
+          filteredMatchHistoryList() {
+            if (!this.matchQueryDateRange || this.matchQueryDateRange.length !== 2) {
+              // 如果没有选择日期范围，返回全部记录
+              return this.matchHistoryList;
+            }
+
+            const [startDate, endDate] = this.matchQueryDateRange;
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            // 设置开始日期为当天的00:00:00
+            start.setHours(0, 0, 0, 0);
+            // 设置结束日期为当天的23:59:59
+            end.setHours(23, 59, 59, 999);
+
+            return this.matchHistoryList.filter(match => {
+              // 按照创建比赛的时间（start_time）过滤，而不是保存时间（saved_at）
+              if (!match.start_time) return false;
+
+              // startTime 可能是时间戳或日期字符串
+              const matchDate = new Date(match.start_time);
+              // 只比较日期部分，忽略时间
+              const matchDateOnly = new Date(matchDate.getFullYear(), matchDate.getMonth(), matchDate.getDate());
+              const startDateOnly = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+              const endDateOnly = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+
+              return matchDateOnly >= startDateOnly && matchDateOnly <= endDateOnly;
+            });
+          },
+        },
+        methods: {
+          /**
+           * 说明：保存当前比赛状态到 localStorage
+           * 请求方式：本地存储
+           */
+          saveMatchToLocal() {
+            if (!this.isMatchStarted) return; // 只有比赛开始后才保存
+
+            try {
+              const matchData = {
+                matchForm: this.matchForm,
+                playerList: this.playerList,
+                opponentScore: this.opponentScore,
+                matchTimerSeconds: this.matchTimerSeconds,
+                isMatchRunning: this.isMatchRunning,
+                isMatchStarted: this.isMatchStarted,
+                hasMatchStartedOnce: this.hasMatchStartedOnce,
+                isMatchEnded: this.isMatchEnded, // 保存结束状态
+                savedAt: Date.now(),
+              };
+              localStorage.setItem('currentMatch', JSON.stringify(matchData));
+            } catch (e) {
+              console.error('保存比赛数据到本地失败:', e);
+            }
+          },
+
+          /**
+           * 说明：从 localStorage 恢复未完成的比赛
+           * 请求方式：本地读取
+           */
+          restoreMatchFromLocal() {
+            try {
+              const saved = localStorage.getItem('currentMatch');
+              if (!saved) return null;
+
+              const matchData = JSON.parse(saved);
+
+              // 检查数据完整性
+              if (!matchData.matchForm || !matchData.playerList) {
+                return null;
+              }
+
+              return matchData;
+            } catch (e) {
+              console.error('恢复比赛数据失败:', e);
+              return null;
+            }
+          },
+
+          /**
+           * 说明：检查并提示恢复未完成的比赛
+           * 请求方式：本地检查
+           */
+          checkAndRestoreMatch() {
+            const savedMatch = this.restoreMatchFromLocal();
+            if (!savedMatch) return;
+
+            // 检查保存时间，如果超过7天，不提示恢复
+            const daysDiff = (Date.now() - savedMatch.savedAt) / (1000 * 60 * 60 * 24);
+            if (daysDiff > 7) {
+              localStorage.removeItem('currentMatch');
+              return;
+            }
+
+            // 区分"未完成"和"已结束未保存"两种状态
+            const isEnded = savedMatch.isMatchEnded === true;
+            const matchStatus = isEnded ? '已结束但未保存' : '未完成';
+            const confirmText = isEnded ? '打开' : '恢复';
+            const title = isEnded ? '检测到未保存的比赛' : '检测到未完成的比赛';
+
+            this.$confirm(`${title}：${savedMatch.matchForm.teams || '未命名比赛'}（${new Date(savedMatch.savedAt).toLocaleString()}保存）\n状态：${matchStatus}\n${isEnded ? '可以核对球员表现后点击"保存比赛"按钮保存到云端' : '是否恢复？'}`, title, {
+              confirmButtonText: confirmText,
+              cancelButtonText: '放弃',
+              type: isEnded ? 'warning' : 'info',
+            })
+              .then(() => {
+                // 恢复比赛数据
+                this.matchForm = savedMatch.matchForm;
+                // 合并球员数据：保留从接口获取的球员基础信息，恢复统计数据
+                if (savedMatch.playerList && savedMatch.playerList.length > 0) {
+                  const savedPlayerMap = {};
+                  savedMatch.playerList.forEach(p => {
+                    savedPlayerMap[p.id] = p;
+                  });
+
+                  // 更新当前球员列表的统计数据
+                  this.playerList.forEach(player => {
+                    if (savedPlayerMap[player.id]) {
+                      const saved = savedPlayerMap[player.id];
+                      player.score = saved.score || 0;
+                      player.rebound = saved.rebound || 0;
+                      player.assist = saved.assist || 0;
+                      player.block = saved.block || 0;
+                      player.steal = saved.steal || 0;
+                      player.foul = saved.foul || 0;
+                      player.isPlaying = saved.isPlaying || false;
+                      player.playTimeSeconds = saved.playTimeSeconds || 0; // 恢复上场时长
+                    }
+                  });
+                }
+
+                this.opponentScore = savedMatch.opponentScore !== undefined ? savedMatch.opponentScore : null;
+                this.matchTimerSeconds = savedMatch.matchTimerSeconds || 0;
+                this.isMatchRunning = false; // 恢复时默认暂停状态
+                this.isMatchStarted = savedMatch.isMatchStarted || false;
+                this.hasMatchStartedOnce = savedMatch.hasMatchStartedOnce || false;
+                this.isMatchEnded = savedMatch.isMatchEnded || false;
+
+                // 根据状态显示不同提示
+                if (isEnded) {
+                  this.$message.warning('比赛已打开，请核对球员表现后点击"保存比赛"按钮保存到云端');
+                } else if (savedMatch.isMatchRunning) {
+                  this.$message.info('比赛已恢复，请点击"继续"按钮继续比赛');
+                } else {
+                  this.$message.success('比赛已恢复');
+                }
+
+                // 恢复后立即保存一次，更新保存时间
+                this.saveMatchToLocal();
+              })
+              .catch(() => {
+                // 用户选择放弃，清除本地数据
+                localStorage.removeItem('currentMatch');
+                this.$message.info(`已放弃${isEnded ? '未保存的' : '未完成的'}比赛`);
+              });
+          },
+
+          /**
+           * 说明：清除本地保存的比赛数据
+           * 请求方式：本地删除
+           */
+          clearMatchFromLocal() {
+            try {
+              localStorage.removeItem('currentMatch');
+            } catch (e) {
+              console.error('清除本地比赛数据失败:', e);
+            }
+          },
+
+          handleDeletePlayer(player) {
+            this.$confirm(`确定要删除球员 ${player.name} 吗？删除后其数据将不再显示在统计中。`, '提示', {
+              confirmButtonText: '确定',
+              cancelButtonText: '取消',
+              type: 'warning',
+            })
+              .then(() => {
+                // 调用 DELETE 接口
+                fetch(`${API_BASE}/players/${player.id}`, {
+                  method: 'DELETE',
+                })
+                  .then(res => res.json())
+                  .then(res => {
+                    if (res.success) {
+                      this.$message.success('球员已删除');
+                      this.fetchPlayers(); // 刷新列表
+                    } else {
+                      this.$message.error(res.message);
+                    }
+                  });
+              })
+              .catch(() => {});
+          },
+          tableRowClassName({ row }) {
+            return row.isPlaying ? 'warning-row' : '';
+          },
+          openHistory() {
+            this.historyVisible = true;
+            this.fetchMatchHistory();
+            this.fetchPlayerReport();
+          },
+          /**
+           * 说明：获取比赛记录列表
+           * 请求方式：GET
+           * 入参：无
+           * @returns Promise
+           */
+          fetchMatchHistory() {
+            fetch(`${API_BASE}/matches`)
+              .then(res => res.json())
+              .then(res => {
+                this.matchHistoryList = res.data || [];
+              })
+              .catch(err => {
+                console.error('获取比赛记录失败:', err);
+                this.$message.error('获取比赛记录失败，请稍后重试');
+                this.matchHistoryList = [];
+              });
+          },
+
+          /**
+           * 说明：查询指定日期范围的比赛记录
+           * 请求方式：本地过滤
+           */
+          queryMatchHistory() {
+            if (!this.matchQueryDateRange || this.matchQueryDateRange.length !== 2) {
+              this.$message.warning('请选择查询日期范围');
+              return;
+            }
+
+            const [startDate, endDate] = this.matchQueryDateRange;
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+
+            if (start > end) {
+              this.$message.warning('开始日期不能大于结束日期');
+              return;
+            }
+
+            // 过滤逻辑在 computed 中已实现，这里只需要提示
+            const count = this.filteredMatchHistoryList.length;
+            if (count === 0) {
+              this.$message.info('该日期范围内没有比赛记录');
+            } else {
+              this.$message.success(`查询到 ${count} 场比赛记录`);
+            }
+          },
+
+          /**
+           * 说明：重置比赛记录查询条件
+           * 请求方式：本地更新
+           */
+          resetMatchQuery() {
+            this.matchQueryDateRange = null;
+            this.$message.info('已重置查询条件，显示全部比赛记录');
+          },
+
+          /**
+           * 说明：日期范围改变时的处理
+           * 请求方式：本地更新
+           */
+          handleDateRangeChange() {
+            // 日期范围改变时，自动触发查询（可选）
+            // 如果需要自动查询，可以在这里调用 queryMatchHistory()
+          },
+          viewMatchDetail(id) {
+            fetch(`${API_BASE}/matches/${id}`)
+              .then(res => res.json())
+              .then(res => {
+                this.currentMatchDetail = res.data;
+                this.detailVisible = true;
+              });
+          },
+          /**
+           * 说明：获取球员数据深度统计
+           * 请求方式：GET
+           * 入参：startTime (可选), endTime (可选)
+           * @returns Promise
+           */
+          fetchPlayerReport() {
+            // 构建查询参数
+            let url = `${API_BASE}/statistics/report`;
+            const params = [];
+
+            if (this.playerStatsDateRange && this.playerStatsDateRange.length === 2) {
+              const [startDate, endDate] = this.playerStatsDateRange;
+              // 开始时间设置为当天的 00:00:00
+              const startTime = new Date(startDate);
+              startTime.setHours(0, 0, 0, 0);
+              // 结束时间设置为当天的 23:59:59
+              const endTime = new Date(endDate);
+              endTime.setHours(23, 59, 59, 999);
+
+              params.push(`startTime=${encodeURIComponent(startTime.toISOString())}`);
+              params.push(`endTime=${encodeURIComponent(endTime.toISOString())}`);
+            }
+
+            if (params.length > 0) {
+              url += '?' + params.join('&');
+            }
+
+            fetch(url)
+              .then(res => res.json())
+              .then(res => {
+                if (res.success) {
+                  this.playerStatsReport = res.data || [];
+                  this.statRange = res.range || { start: '', end: '' };
+                } else {
+                  this.$message.error(res.message || '获取统计数据失败');
+                }
+              })
+              .catch(err => {
+                console.error('获取统计数据失败:', err);
+                this.$message.error('获取统计数据失败，请稍后重试');
+              });
+          },
+          /**
+           * 说明：查询球员统计数据
+           * 请求方式：本地调用
+           */
+          queryPlayerStats() {
+            if (!this.playerStatsDateRange || this.playerStatsDateRange.length !== 2) {
+              return this.$message.warning('请选择查询日期范围');
+            }
+
+            const [startDate, endDate] = this.playerStatsDateRange;
+            if (new Date(startDate) > new Date(endDate)) {
+              return this.$message.warning('开始日期不能大于结束日期');
+            }
+
+            this.fetchPlayerReport();
+            this.$message.success('查询成功');
+          },
+          /**
+           * 说明：重置球员统计查询条件
+           * 请求方式：本地更新
+           */
+          resetPlayerStatsQuery() {
+            this.playerStatsDateRange = null;
+            this.fetchPlayerReport();
+            this.$message.info('已重置查询条件');
+          },
+
+          // --- 接口调用 ---
+          fetchPlayers() {
+            fetch(`${API_BASE}/players`)
+              .then(res => res.json())
+              .then(res => {
+                if (res.success) {
+                  this.playerList = res.data.map(p => ({
+                    ...p,
+                    score: 0,
+                    rebound: 0,
+                    assist: 0,
+                    block: 0,
+                    steal: 0,
+                    foul: 0,
+                    isPlaying: false,
+                    playTimeSeconds: 0, // 上场总时长（秒）
+                  }));
+                  // 球员列表加载完成后，检查是否有未完成的比赛
+                  this.checkAndRestoreMatch();
+                } else {
+                  // 即使接口失败，也检查本地是否有未完成的比赛
+                  this.checkAndRestoreMatch();
+                }
+              })
+              .catch(err => {
+                console.error('获取球员列表失败:', err);
+                // 接口失败时，也检查本地是否有未完成的比赛
+                this.checkAndRestoreMatch();
+              });
+          },
+
+          confirmAddPlayer() {
+            const name = this.addPlayerForm.name;
+            const number = this.addPlayerForm.number;
+
+            // 1. 校验姓名不能为空
+            if (!name) {
+              return this.$message.warning('请填写球员姓名');
+            }
+
+            // 2. 校验号码：必须是数字，且不能为空字符串、null 或 undefined
+            if (number === null || number === undefined || number === '') {
+              return this.$message.warning('请填写球衣号码');
+            }
+
+            // 3. 校验号码范围：不能小于 0
+            if (number < 0) {
+              return this.$message.warning('球衣号码不能小于 0');
+            }
+
+            const exists = this.playerList.some(p => p.number === number);
+            if (exists) {
+              return this.$message.warning('该球衣号已被使用');
+            }
+
+            fetch(`${API_BASE}/players`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(this.addPlayerForm),
+            })
+              .then(res => res.json())
+              .then(res => {
+                if (res.success) {
+                  this.$message.success('添加成功');
+                  this.addPlayerDialogVisible = false;
+                  this.fetchPlayers();
+                } else {
+                  this.$message.error(res.message);
+                }
+              });
+          },
+
+          /**
+           * 说明：保存比赛到云端
+           * 请求方式：POST
+           */
+          saveMatch() {
+            // 校验对手总分是否输入
+            if (this.opponentScore === null || this.opponentScore === undefined || this.opponentScore === '') {
+              return this.$message.warning('请先输入对手总分');
+            }
+
+            // 校验对手总分是否为有效数字
+            const opponentScoreNum = Number(this.opponentScore);
+            if (isNaN(opponentScoreNum) || opponentScoreNum < 0) {
+              return this.$message.warning('对手总分必须是非负整数');
+            }
+
+            // 计算自己队伍的总分（所有球员得分之和）
+            const teamScore = this.totalScore;
+
+            const payload = {
+              location: this.matchForm.location,
+              startTime: this.matchForm.startTime,
+              teams: this.matchForm.teams,
+              durationSeconds: this.matchTimerSeconds,
+              isRunning: this.isMatchRunning,
+              teamScore: teamScore, // 自己队伍的总分
+              opponentScore: opponentScoreNum, // 对手总分
+              players: this.playerList.map(p => ({
+                playerId: p.id,
+                score: p.score,
+                rebound: p.rebound,
+                assist: p.assist,
+                block: p.block,
+                steal: p.steal,
+                foul: p.foul,
+                isPlaying: p.isPlaying,
+                playTimeSeconds: p.playTimeSeconds || 0, // 上场总时长
+              })),
+              savedAt: Date.now(),
+            };
+
+            fetch(`${API_BASE}/matches/save`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            })
+              .then(res => res.json())
+              .then(res => {
+                if (res.success) {
+                  this.$message.success('比赛数据已保存到云端');
+                  // 保存成功后清除本地数据（因为已经保存到云端了）
+                  this.clearMatchFromLocal();
+                  // 重置状态
+                  this.isMatchStarted = false;
+                  this.isMatchRunning = false;
+                  this.hasMatchStartedOnce = false;
+                  this.isMatchEnded = false;
+                  this.matchTimerSeconds = 0;
+                  this.opponentScore = null;
+                  this.matchForm = { location: '', startTime: null, teams: '' };
+                  // 重置球员数据
+                  this.playerList.forEach(p => {
+                    p.score = 0;
+                    p.rebound = 0;
+                    p.assist = 0;
+                    p.block = 0;
+                    p.steal = 0;
+                    p.foul = 0;
+                    p.isPlaying = false;
+                    p.playTimeSeconds = 0; // 重置上场时长
+                  });
+                  this.$message.info('可以新建下一场比赛了');
+                } else {
+                  this.$message.error(res.message || '保存失败');
+                }
+              })
+              .catch(err => {
+                this.$message.error('保存失败，数据已保存到本地，请稍后重试');
+                console.error('保存比赛失败:', err);
+                // 即使保存失败，也要保存到本地作为备份
+                this.saveMatchToLocal();
+              });
+          },
+
+          // --- 页面逻辑 ---
+          openAddPlayerDialog() {
+            this.addPlayerForm = { name: '', number: null };
+            this.addPlayerDialogVisible = true;
+          },
+          /**
+           * 说明：打开新建比赛对话框（检查是否有未完成/未保存的比赛）
+           * 请求方式：本地检查
+           */
+          openMatchDialog() {
+            // 检查是否有未完成或未保存的比赛
+            const savedMatch = this.restoreMatchFromLocal();
+            if (savedMatch) {
+              const isEnded = savedMatch.isMatchEnded === true;
+              const matchStatus = isEnded ? '已结束但未保存' : '未完成';
+              this.$confirm(`当前有${matchStatus}的比赛：${savedMatch.matchForm.teams || '未命名比赛'}\n请先处理完当前比赛后，再新建比赛。\n\n是否放弃当前比赛并新建？`, '提示', {
+                confirmButtonText: '放弃当前比赛',
+                cancelButtonText: '取消',
+                type: 'warning',
+              })
+                .then(() => {
+                  // 清除本地数据
+                  localStorage.removeItem('currentMatch');
+                  // 重置状态
+                  this.isMatchStarted = false;
+                  this.isMatchRunning = false;
+                  this.hasMatchStartedOnce = false;
+                  this.isMatchEnded = false;
+                  this.matchTimerSeconds = 0;
+                  this.opponentScore = null;
+                  this.matchForm = { location: '', startTime: null, teams: '' };
+                  // 重置球员数据
+                  this.playerList.forEach(p => {
+                    p.score = 0;
+                    p.rebound = 0;
+                    p.assist = 0;
+                    p.block = 0;
+                    p.steal = 0;
+                    p.foul = 0;
+                    p.isPlaying = false;
+                    p.playTimeSeconds = 0; // 重置上场时长
+                  });
+                  this.$message.info('已清除当前比赛，可以新建比赛了');
+                  this.matchDialogVisible = true;
+                })
+                .catch(() => {});
+            } else {
+              // 没有未完成的比赛，直接打开对话框
+              this.matchDialogVisible = true;
+            }
+          },
+          confirmMatch() {
+            if (!this.matchForm.location || !this.matchForm.teams) return this.$message.warning('请填写完整');
+            this.isMatchStarted = true;
+            this.isMatchEnded = false; // 新建比赛时重置结束状态
+            this.opponentScore = null; // 新建比赛时重置对手得分
+            this.matchDialogVisible = false;
+            // 保存到本地
+            this.saveMatchToLocal();
+          },
+          /**
+           * 说明：开始比赛，开始计时
+           * 请求方式：本地更新
+           */
+          startMatch() {
+            // 校验是否有至少5名球员上场
+            const playingCount = this.playerList.filter(p => p.isPlaying).length;
+            if (playingCount < 5) {
+              return this.$message.warning(`至少需要5名球员上场才能开始比赛，当前只有 ${playingCount} 名球员上场`);
+            }
+
+            this.isMatchRunning = true;
+            this.hasMatchStartedOnce = true;
+            this.matchTimerId = setInterval(() => {
+              this.matchTimerSeconds++;
+              // 为所有上场球员增加上场时长
+              this.playerList.forEach(p => {
+                if (p.isPlaying) {
+                  p.playTimeSeconds++;
+                }
+              });
+              // 每10秒自动保存一次（避免频繁写入）
+              if (this.matchTimerSeconds % 10 === 0) {
+                this.saveMatchToLocal();
+              }
+            }, 1000);
+            // 保存到本地
+            this.saveMatchToLocal();
+          },
+          pauseMatch() {
+            this.isMatchRunning = false;
+            clearInterval(this.matchTimerId);
+            // 保存到本地
+            this.saveMatchToLocal();
+          },
+          resumeMatch() {
+            this.isMatchRunning = true;
+            this.matchTimerId = setInterval(() => {
+              this.matchTimerSeconds++;
+              this.playerList.forEach(p => {
+                if (p.isPlaying) {
+                  p.playTimeSeconds++;
+                }
+              });
+              if (this.matchTimerSeconds % 10 === 0) {
+                this.saveMatchToLocal();
+              }
+            }, 1000);
+            this.saveMatchToLocal();
+          },
+          /**
+           * 说明：结束比赛（只保存到本地，不保存到后端）
+           * 请求方式：本地更新
+           */
+          endMatch() {
+            this.$confirm('确定结束比赛吗？结束后可以核对球员表现，确认无误后再点击"保存比赛"按钮保存到云端。', '结束比赛', {
+              confirmButtonText: '确定结束',
+              cancelButtonText: '取消',
+              type: 'info',
+            })
+              .then(() => {
+                // 暂停计时器
+                this.pauseMatch();
+                // 标记比赛已结束
+                this.isMatchEnded = true;
+                // 只保存到本地，不保存到后端
+                this.saveMatchToLocal();
+                this.$message.success('比赛已结束，请核对球员表现后点击"保存比赛"按钮保存到云端');
+              })
+              .catch(() => {});
+          },
+          /**
+           * 说明：防抖保存到本地（避免频繁写入）
+           * 请求方式：本地存储
+           */
+          debouncedSave() {
+            if (this.saveDebounceTimer) {
+              clearTimeout(this.saveDebounceTimer);
+            }
+            this.saveDebounceTimer = setTimeout(() => {
+              this.saveMatchToLocal();
+            }, 1000); // 1秒内多次操作只保存一次
+          },
+
+          doAction(type, val) {
+            if (!this.isMatchRunning) return this.$message.warning('请先开始比赛');
+            if (!this.selectedPlayerId) return this.$message.warning('请选择球员');
+            const player = this.playerList.find(p => p.id === this.selectedPlayerId);
+            if (type === 'score') player.score += val;
+            else player[type] += val;
+            // 每次操作后保存到本地（使用防抖，避免频繁写入）
+            this.debouncedSave();
+            this.$message.success(`${player.name} ${type} ${val}`);
+          },
+          /**
+           * 说明：格式化上场时长（秒转为 MM:SS 格式）- 用于比赛进行中的表格显示
+           * @param {number} seconds - 秒数
+           * @returns {string} 格式化后的时间字符串
+           */
+          formatPlayTime(seconds) {
+            if (!seconds || seconds < 0) return '00:00';
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+          },
+          /**
+           * 说明：格式化上场时长（中文格式）- 用于历史记录详情显示
+           * @param {number} seconds - 秒数
+           * @returns {string} 格式化后的时间字符串（x秒 或 x分x秒）
+           */
+          formatPlayTimeText(seconds) {
+            if (!seconds || seconds < 0) return '0秒';
+            if (seconds < 60) {
+              return `${seconds}秒`;
+            }
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            if (secs === 0) {
+              return `${mins}分`;
+            }
+            return `${mins}分${secs}秒`;
+          },
+        },
+      });
+    </script>
+  </body>
+</html>
